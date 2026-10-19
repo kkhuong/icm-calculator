@@ -1,6 +1,6 @@
-# GTO Finance
+# ICM Poker Tools
 
-A pocket toolkit for tournament poker math. It has four calculators in one dark-themed mobile app, built with Expo and React Native:
+A pocket toolkit for tournament poker players. It has four calculators in one dark-themed mobile app, built with Expo and React Native:
 
 | Satellite | ICM Value | Hand Equity |
 | :---: | :---: | :---: |
