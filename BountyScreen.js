@@ -78,7 +78,7 @@ export default function BountyScreen() {
           <View style={s.titleRow}><Text style={s.title}>GTO Finance</Text><Text style={s.sub}>Mystery bounty value</Text></View>
 
           <View style={x.card}>
-            <Text style={x.cardLabel}>Each knockout is worth</Text>
+            <Text style={x.cardLabel}>Each knockout's expected worth</Text>
             <Text style={x.ev}>{st.count ? money(st.ev) : '–'}</Text>
             <Text style={x.cardSub}>
               {st.count
@@ -144,7 +144,12 @@ export default function BountyScreen() {
 
           <Text style={s.foot}>Tap − each time a bounty of that size is pulled. % is the chance the next one drawn is that size.</Text>
 
-          <Text style={[s.head, x.section]}>Bounty in chips</Text>
+          <View style={[s.headRow, x.section]}>
+            <Text style={s.head}>Bounty in chips</Text>
+            <Pressable onPress={() => setSpot((sp) => ({ ...sp, prizeLeft: '', chips: '', bb: '' }))}>
+              <Text style={s.clear}>Clear</Text>
+            </Pressable>
+          </View>
           <View style={x.fields}>
             <Field label="Prize money left" value={spot.prizeLeft} onChange={setField('prizeLeft')} decimalPad isMoney />
             <Field label="Chips in play" value={spot.chips} onChange={setField('chips')} />
@@ -152,11 +157,16 @@ export default function BountyScreen() {
           </View>
           <Text style={x.answer}>
             {inChips
-              ? <>A knockout is worth <Text style={x.hi}>{whole(inChips.chips)} chips</Text>{inChips.bb != null ? <> · <Text style={x.hi}>{fmt(Math.round(inChips.bb * 10) / 10)} BB</Text></> : null}</>
+              ? <>A knockout is worth <Text style={x.hi}>{whole(inChips.chips)} chips</Text>{inChips.bb != null ? <> or <Text style={x.hi}>{fmt(Math.round(inChips.bb * 10) / 10)}bb</Text></> : null}</>
               : 'Enter the bounties above plus the regular (non-bounty) prize money still to be paid and the total chips in play.'}
           </Text>
 
-          <Text style={[s.head, x.section]}>Calling an all-in you cover</Text>
+          <View style={[s.headRow, x.section]}>
+            <Text style={s.head}>Calling an all-in you cover</Text>
+            <Pressable onPress={() => setSpot((sp) => ({ ...sp, pot: '', call: '' }))}>
+              <Text style={s.clear}>Clear</Text>
+            </Pressable>
+          </View>
           <View style={x.fields}>
             <Field label="Pot incl. their shove" value={spot.pot} onChange={setField('pot')} />
             <Field label="To call" value={spot.call} onChange={setField('call')} />

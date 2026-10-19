@@ -185,7 +185,7 @@ export default function EquityScreen() {
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <View style={s.titleRow}>
           <Text style={s.title}>GTO Finance</Text>
-          <Pressable onPress={reset}><Text style={s.clear}>Reset</Text></Pressable>
+          <Pressable onPress={reset}><Text style={s.clear}>Clear</Text></Pressable>
         </View>
 
         <View style={x.seg}>

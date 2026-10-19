@@ -11,6 +11,18 @@ const KEY = 'gto-finance-icm-v1';
 const MAX_PLAYERS = 30;
 const ord = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 >> 3) ^ 1 && n % 10 < 4 ? n % 10 : 0]);
 
+// A lower place paying more than a higher one is almost certainly a typo. Returns the worst such
+// pair as {higher, lower} (0-based places, higher < lower), or null if payouts never increase.
+function findMisorder(pay) {
+  let worst = null, gap = 0;
+  for (let i = 0; i < pay.length; i++) {
+    for (let j = i + 1; j < pay.length; j++) {
+      if (pay[j] - pay[i] > gap) { gap = pay[j] - pay[i]; worst = { higher: i, lower: j }; }
+    }
+  }
+  return worst;
+}
+
 export default function IcmScreen() {
   const [players, setPlayers] = useState(6);
   const [places, setPlaces] = useState(3);
@@ -42,8 +54,15 @@ export default function IcmScreen() {
   };
 
   const nums = stacks.map((v) => parseFloat(v) || 0);
-  // Payouts are treated as highest-first whatever order they were typed in (a lower place never pays more).
-  const pay = prizes.slice(0, places).map((v) => parseFloat(v) || 0).sort((a, b) => b - a);
+  const typed = prizes.slice(0, places).map((v) => parseFloat(v) || 0);
+  const misorder = findMisorder(typed); // warns about the boxes; tapping it only tidies them
+  // The calculation always treats the highest payout as 1st, next highest as 2nd, and so on.
+  const pay = typed.slice().sort((a, b) => b - a);
+  // Reorder the typed payouts highest-first (blanks last), leaving places beyond the paid ones alone.
+  const sortPrizes = () => setPrizes((p) => [
+    ...p.slice(0, places).sort((a, b) => (parseFloat(b) || 0) - (parseFloat(a) || 0)),
+    ...p.slice(places),
+  ]);
   const total = nums.reduce((a, b) => a + b, 0);
   const pool = pay.reduce((a, b) => a + b, 0);
   const filled = nums.filter((n) => n > 0).length;
@@ -86,6 +105,13 @@ export default function IcmScreen() {
               </View>
             ))}
           </View>
+          {misorder && (
+            <Pressable onPress={sortPrizes} hitSlop={6}>
+              <Text style={x.warn}>
+                {ord(misorder.lower + 1)} pays more than {ord(misorder.higher + 1)} — <Text style={x.warnLink}>tap to sort</Text>
+              </Text>
+            </Pressable>
+          )}
 
           <View style={[s.headRow, x.divider]}>
             <Text style={s.head}>Chip Stacks</Text>
@@ -127,7 +153,7 @@ export default function IcmScreen() {
           })}
 
           <Text style={s.foot}>
-            {pool > 0 ? `Prize pool ${money(pool)} · ${ready ? total.toLocaleString() + ' total chips' : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
+            {pool > 0 ? `Prize pool ${money(pool)} · ${ready ? `Total chips ${total.toLocaleString()} · Average stack ${(total / players).toLocaleString(undefined, { maximumFractionDigits: 1 })}` : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -136,6 +162,8 @@ export default function IcmScreen() {
 }
 
 const x = StyleSheet.create({
+  warn: { color: C.amber, fontSize: 13, marginTop: 6 },
+  warnLink: { fontWeight: '800', textDecorationLine: 'underline' },
   divider: { marginTop: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.line },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
   prizeCell: { width: '49%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 10, padding: 3, gap: 3 },

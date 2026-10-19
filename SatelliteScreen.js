@@ -102,7 +102,7 @@ export default function SatelliteScreen() {
           })}
 
           <Text style={s.foot}>
-            {ready ? `Total Chips ${total.toLocaleString()} · Average Stack ${(total / players).toLocaleString(undefined, { maximumFractionDigits: 1 })}`
+            {ready ? `Total chips ${total.toLocaleString()} · Average stack ${(total / players).toLocaleString(undefined, { maximumFractionDigits: 1 })}`
               : filled > 0 ? `Enter all ${players} stacks to see the odds (${filled} of ${players} entered).`
               : 'Enter each player’s chips to see their chance of a seat.'}
           </Text>
