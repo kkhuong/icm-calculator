@@ -46,7 +46,13 @@ export default function IcmScreen() {
   const pay = prizes.slice(0, places).map((v) => parseFloat(v) || 0);
   const total = nums.reduce((a, b) => a + b, 0);
   const pool = pay.reduce((a, b) => a + b, 0);
-  const eq = useMemo(() => icmEquity(nums, pay), [stacks, prizes, places]);
+  const filled = nums.filter((n) => n > 0).length;
+  // Blank rows would otherwise be treated as absent players, leaving their prizes unassigned.
+  const ready = filled === players && pool > 0;
+  const eq = useMemo(() => (ready ? icmEquity(nums, pay) : []), [stacks, prizes, places, ready]);
+
+  // Don't accept input until saved state has loaded, or the load would overwrite it.
+  if (!loaded) return <View style={s.safe} />;
 
   return (
     <View style={s.safe}>
@@ -75,7 +81,7 @@ export default function IcmScreen() {
                   placeholder="0"
                   placeholderTextColor={C.dim}
                   keyboardType="decimal-pad"
-                  onChangeText={(t) => setPrizes((p) => p.map((v, k) => (k === i ? t.replace(/[^0-9.]/g, '') : v)))}
+                  onChangeText={(t) => setPrizes((p) => p.map((v, k) => (k === i ? t.replace(/,/g, '.').replace(/[^0-9.]/g, '') : v)))}
                 />
               </View>
             ))}
@@ -106,7 +112,7 @@ export default function IcmScreen() {
                   onChangeText={(t) => setStacks((st) => st.map((q, k) => (k === i ? t.replace(/[^0-9]/g, '') : q)))}
                 />
                 <View style={[s.result, { width: 140 }]}>
-                  {nums[i] > 0 && pool > 0 ? (
+                  {ready ? (
                     <>
                       <Text style={s.pct}>{fmt(eq[i])}</Text>
                       <View style={s.barBg}><View style={[s.bar, { width: `${(eq[i] / pool) * 100}%` }]} /></View>
@@ -121,7 +127,7 @@ export default function IcmScreen() {
           })}
 
           <Text style={s.foot}>
-            {pool > 0 ? `Prize pool ${fmt(pool)} · ${total > 0 ? fmt(total) + ' chips' : 'enter stacks'}` : 'Enter the payouts and each player’s chips.'}
+            {pool > 0 ? `Prize pool ${fmt(pool)} · ${ready ? fmt(total) + ' chips' : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

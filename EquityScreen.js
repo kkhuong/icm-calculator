@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Dimensions } from 'react-native';
-import { equity, equityRange, RANKS, SUITS, SUIT_COLORS, rankChar, cardOf } from './equity';
+import { View, Text, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { equityJob, equityRangeJob, RANKS, SUITS, SUIT_COLORS, rankChar, cardOf } from './equity';
 import { C, s } from './ui';
 import RangeEditor from './RangeEditor';
 import { emptyRange, rangeCombos, rangeStats } from './ranges';
@@ -8,8 +8,8 @@ import { emptyRange, rangeCombos, rangeStats } from './ranges';
 const MAX_DEAD = 10;
 const HOLE = { nlh: 2, plo: 4, plo5: 5 };
 const MAXH = { nlh: 10, plo: 9, plo5: 8 };
-const W = Dimensions.get('window').width;
-const CELL = Math.floor((W - 20 - 12 * 2) / 13);
+const SLICE_MS = 12; // max time per calculation slice before yielding back to the UI
+const PARTIAL_MS = 150; // how often a sampled run refreshes its on-screen estimate
 const pct = (v) => (v * 100).toFixed(1);
 
 function CardFace({ card, size = 'm' }) {
@@ -53,6 +53,9 @@ export default function EquityScreen() {
   const [sel, setSel] = useState(['h', 0, 0]);
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
+  const win = useWindowDimensions();
+  const [gridW, setGridW] = useState(null);
+  const cell = Math.floor(((gridW ?? win.width - 20) - 12 * 2) / 13);
 
   const slotsOf = (hs, bd, rg = ranges) => [
     ...hs.flatMap((h, i) => (rg[i] ? [] : h.map((_, j) => ['h', i, j]))),
@@ -142,16 +145,36 @@ export default function EquityScreen() {
     const needed = 5 - bd.length;
     const taken = players.length * hole + bd.length + dead.length;
     setNote(null);
-    if (players.length < 2 || boardStatus(board) || 52 - taken < needed) { setRes(null); setBusy(false); return; }
+    setRes(null); // never show results from the previous inputs while the new ones compute
+    if (players.length < 2 || boardStatus(board) || 52 - taken < needed) { setBusy(false); return; }
     setBusy(true);
-    const t = setTimeout(() => {
-      const anyRange = players.some((p) => p.range);
-      const r = anyRange ? equityRange(players.map((p) => p.combos), bd, dead) : equity(players.map((p) => p.combos[0]), bd, dead);
-      if (!r) { setRes(null); setNote('These ranges can’t be dealt with the cards entered'); setBusy(false); return; }
+    const anyRange = players.some((p) => p.range);
+    const job = anyRange ? equityRangeJob(players.map((p) => p.combos), bd, dead) : equityJob(players.map((p) => p.combos[0]), bd, dead);
+    const fail = () => { setNote('These ranges can’t be dealt with the cards entered'); setBusy(false); };
+    if (!job) { fail(); return; }
+    // Run in short slices so taps and scrolling stay responsive; cleanup cancels a stale run.
+    // Sampled runs (preflop, ranges) show a running estimate that firms up as samples accumulate.
+    let t, shown = Date.now();
+    const show = (r, final) => {
       const out = {};
       players.forEach((p, k) => (out[p.i] = r[k]));
-      setRes(out); setBusy(false);
-    }, 20);
+      setRes(out); setBusy(!final);
+    };
+    const tick = () => {
+      if (!job.step(Date.now() + SLICE_MS)) {
+        if (!job.exact && Date.now() - shown >= PARTIAL_MS) {
+          const r = job.result();
+          if (r) show(r, false);
+          shown = Date.now();
+        }
+        t = setTimeout(tick, 0);
+        return;
+      }
+      const r = job.result();
+      if (!r) { fail(); return; }
+      show(r, true);
+    };
+    t = setTimeout(tick, 20);
     return () => clearTimeout(t);
   }, [hands, board, dead, game, ranges]);
 
@@ -208,7 +231,7 @@ export default function EquityScreen() {
               <View style={[s.result, { flex: 1, width: undefined }]}>
                 {r ? (
                   <>
-                    <Text style={s.pct}>{pct(r.equity)}%</Text>
+                    <Text style={[s.pct, busy && x.pending]}>{pct(r.equity)}%</Text>
                     <Text style={s.chips} numberOfLines={1} adjustsFontSizeToFit>win {pct(r.win)}% · tie {pct(r.tie)}%</Text>
                   </>
                 ) : (
@@ -241,14 +264,14 @@ export default function EquityScreen() {
         onClose={() => setEditing(null)}
       />
 
-      <View style={x.grid}>
+      <View style={x.grid} onLayout={(e) => setGridW(e.nativeEvent.layout.width - 20)}>
         {SUITS.map((_, suit) => (
           <View key={suit} style={x.gridRow}>
             {RANKS.split('').map((_, ri) => {
               const card = cardOf(ri, suit);
               const taken = used.has(card);
               return (
-                <Pressable key={card} onPress={() => pick(card)} style={[x.cell, { width: CELL }, taken && { opacity: 0.18 }]}>
+                <Pressable key={card} onPress={() => pick(card)} style={[x.cell, { width: cell }, taken && { opacity: 0.18 }]}>
                   <CardFace card={card} size="s" />
                 </Pressable>
               );
@@ -262,6 +285,7 @@ export default function EquityScreen() {
 
 const x = StyleSheet.create({
   face: { fontWeight: '800' },
+  pending: { color: C.dim },
   slot: { width: 46, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
   seg: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   segBtn: { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },

@@ -1,10 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Modal, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Modal, StyleSheet, useWindowDimensions } from 'react-native';
 import { C } from './ui';
 import { cellLabel, rangeStats, topPercent, emptyRange } from './ranges';
 
-const W = Dimensions.get('window').width;
-const CELL_W = Math.floor((W - 20) / 13);
 const CELL_H = 34;
 const PRESETS = [5, 10, 15, 20, 30, 50];
 
@@ -12,14 +10,22 @@ export default function RangeEditor({ visible, title, value, onChange, onClose }
   const cur = useRef(value);
   const paintTo = useRef(1);
   const last = useRef(-1);
+  const origin = useRef({ x: 0, y: 0 });
   useEffect(() => { cur.current = value; }, [value]);
+
+  // The modal is narrower than the window on iPad (pageSheet), so size cells from its measured width.
+  const win = useWindowDimensions();
+  const [wrapW, setWrapW] = useState(null);
+  const cellW = Math.floor(((wrapW ?? win.width) - 20) / 13);
 
   const sel = value || emptyRange();
   const st = rangeStats(sel);
 
+  // locationX/Y is unreliable during a drag, so take the grid's page origin at touch start
+  // (when locationX/Y is still relative to the grid) and use pageX/Y from then on.
   const cellFrom = (e) => {
-    const { locationX: px, locationY: py } = e.nativeEvent;
-    const c = Math.floor(px / CELL_W), r = Math.floor(py / CELL_H);
+    const px = e.nativeEvent.pageX - origin.current.x, py = e.nativeEvent.pageY - origin.current.y;
+    const c = Math.floor(px / cellW), r = Math.floor(py / CELL_H);
     return c < 0 || c > 12 || r < 0 || r > 12 ? -1 : r * 13 + c;
   };
   const paint = (i) => {
@@ -33,7 +39,7 @@ export default function RangeEditor({ visible, title, value, onChange, onClose }
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} onDismiss={onClose}>
-      <View style={m.wrap}>
+      <View style={m.wrap} onLayout={(e) => setWrapW(e.nativeEvent.layout.width)}>
         <View style={m.head}>
           <View>
             <Text style={m.title}>{title}</Text>
@@ -51,10 +57,12 @@ export default function RangeEditor({ visible, title, value, onChange, onClose }
         </View>
 
         <View
-          style={m.grid}
+          style={[m.grid, { width: cellW * 13 }]}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
           onResponderGrant={(e) => {
+            const { pageX, pageY, locationX, locationY } = e.nativeEvent;
+            origin.current = { x: pageX - locationX, y: pageY - locationY };
             const i = cellFrom(e);
             last.current = -1;
             paintTo.current = i >= 0 && cur.current && cur.current[i] ? 0 : 1;
@@ -67,7 +75,7 @@ export default function RangeEditor({ visible, title, value, onChange, onClose }
               {Array.from({ length: 13 }, (_, c) => {
                 const on = sel[r * 13 + c];
                 return (
-                  <View key={c} style={[m.cell, r === c ? m.pair : r < c ? m.suited : m.off, on && m.on]}>
+                  <View key={c} style={[m.cell, { width: cellW }, r === c ? m.pair : r < c ? m.suited : m.off, on && m.on]}>
                     <Text style={[m.cellText, on && m.cellTextOn]}>{cellLabel(r, c)}</Text>
                   </View>
                 );
@@ -91,9 +99,9 @@ const m = StyleSheet.create({
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   chip: { backgroundColor: C.card, borderRadius: 8, paddingHorizontal: 10, height: 34, justifyContent: 'center' },
   chipText: { color: C.text, fontSize: 14, fontWeight: '600' },
-  grid: { width: CELL_W * 13, alignSelf: 'center' },
+  grid: { alignSelf: 'center' },
   gridRow: { flexDirection: 'row' },
-  cell: { width: CELL_W, height: CELL_H, alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: C.bg },
+  cell: { height: CELL_H, alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: C.bg },
   pair: { backgroundColor: '#2A4157' },
   suited: { backgroundColor: '#203447' },
   off: { backgroundColor: '#18283A' },

@@ -74,7 +74,16 @@ function evalPLO(hand, fb) {
 
 // hands: complete hands of 2 (Hold'em), 4 (PLO) or 5 (PLO5) cards, board: 0/3/4/5 cards, dead: known out cards.
 // Returns [{equity, win, tie}] as fractions. Exact when feasible, otherwise Monte Carlo.
-export function equity(hands, board, dead = [], samples = 40000) {
+export function equity(hands, board, dead = [], samples = 200000) {
+  const job = equityJob(hands, board, dead, samples);
+  job.step(Infinity);
+  return job.result();
+}
+
+// Resumable version of equity(): step(deadline) works until Date.now() passes the deadline and
+// returns true once finished, so the UI thread can run it in slices without freezing. When `exact`
+// is false the run is sampled, and result() mid-run is a valid (noisier) estimate.
+export function equityJob(hands, board, dead = [], samples = 200000) {
   const plo = hands[0].length >= 4;
   const used = new Set([...hands.flat(), ...board, ...dead]);
   const deck = [];
@@ -82,7 +91,8 @@ export function equity(hands, board, dead = [], samples = 40000) {
   const k = 5 - board.length;
   const n = hands.length;
   const perHand = plo ? (PAIRS[hands[0].length].length / 2) * 10 : 1; // 5-card evals per hand
-  const BUDGET = 4e6;
+  const EXACT_BUDGET = 5e5; // enumerate every runout only when cheap (flop/turn/river); preflop is sampled
+  const MC_BUDGET = 4e6;
   const eq = new Array(n).fill(0), win = new Array(n).fill(0), tie = new Array(n).fill(0);
   const fb = new Array(5), cs = new Array(7), scores = new Array(n);
   for (let i = 0; i < board.length; i++) fb[i] = board[i];
@@ -108,26 +118,32 @@ export function equity(hands, board, dead = [], samples = 40000) {
     runs++;
   };
 
-  if (k === 0) score([]);
-  else if (comb(deck.length, k) * n * perHand <= BUDGET) {
-    const pick = new Array(k);
-    const rec = (start, d) => {
-      if (d === k) return score(pick);
-      for (let i = start; i < deck.length; i++) { pick[d] = deck[i]; rec(i + 1, d + 1); }
-    };
-    rec(0, 0);
-  } else {
-    const runsWanted = Math.min(samples, Math.floor(BUDGET / (n * perHand)));
-    const d = deck.slice();
-    for (let s = 0; s < runsWanted; s++) {
-      for (let i = 0; i < k; i++) {
-        const j = i + Math.floor(Math.random() * (d.length - i));
-        const t = d[i]; d[i] = d[j]; d[j] = t;
+  const exact = comb(deck.length, k) * n * perHand <= EXACT_BUDGET; // always true when k = 0
+  const target = exact ? comb(deck.length, k) : Math.min(samples, Math.floor(MC_BUDGET / (n * perHand)));
+  const idx = Array.from({ length: k }, (_, i) => i); // current k-combination of deck indices
+  const pick = new Array(k), d = deck.slice();
+
+  const step = (deadline) => {
+    while (runs < target) {
+      if (exact) {
+        for (let i = 0; i < k; i++) pick[i] = deck[idx[i]];
+        score(pick);
+        let i = k - 1;
+        while (i >= 0 && idx[i] === deck.length - k + i) i--;
+        if (i >= 0) { idx[i]++; for (let j = i + 1; j < k; j++) idx[j] = idx[j - 1] + 1; }
+      } else {
+        for (let i = 0; i < k; i++) {
+          const j = i + Math.floor(Math.random() * (d.length - i));
+          const t = d[i]; d[i] = d[j]; d[j] = t;
+        }
+        score(d);
       }
-      score(d);
+      if ((runs & 255) === 0 && Date.now() >= deadline) break;
     }
-  }
-  return eq.map((v, i) => ({ equity: v / runs, win: win[i] / runs, tie: tie[i] / runs }));
+    return runs >= target;
+  };
+  const result = () => eq.map((v, i) => ({ equity: v / runs, win: win[i] / runs, tie: tie[i] / runs }));
+  return { step, result, exact };
 }
 
 // Range equity (Hold'em). players: array of combo lists, e.g. [[[c1,c2]], [[c1,c2],[c3,c4],...]].
@@ -135,6 +151,15 @@ export function equity(hands, board, dead = [], samples = 40000) {
 // that don't clash with the board, dead cards or each other (rejection sampling), then the board is
 // run out at random. Returns null if no valid deal exists.
 export function equityRange(players, board, dead = [], samples = 100000) {
+  const job = equityRangeJob(players, board, dead, samples);
+  if (!job) return null;
+  job.step(Infinity);
+  return job.result();
+}
+
+// Resumable version of equityRange() (see equityJob). Returns null if some player has no usable combo;
+// result() returns null if no valid deal was found.
+export function equityRangeJob(players, board, dead = [], samples = 100000) {
   const n = players.length;
   const bit = (c) => (c < 32 ? [1 << c, 0] : [0, 1 << (c - 32)]);
   let blockLo = 0, blockHi = 0;
@@ -159,34 +184,39 @@ export function equityRange(players, board, dead = [], samples = 100000) {
   let accepted = 0, attempts = 0;
   const maxAttempts = samples * 40;
 
-  while (accepted < samples && attempts < maxAttempts) {
-    attempts++;
-    let uLo = blockLo, uHi = blockHi, ok = true;
-    for (let p = 0; p < n; p++) {
-      const q = P[p], i = Math.floor(Math.random() * q.m);
-      if ((uLo & q.lo[i]) !== 0 || (uHi & q.hi[i]) !== 0) { ok = false; break; }
-      uLo |= q.lo[i]; uHi |= q.hi[i]; pickIdx[p] = i;
-    }
-    if (!ok) continue;
-    for (let j = 0; j < k; j++) {
-      for (;;) {
-        const c = Math.floor(Math.random() * 52);
-        const [l, h] = bit(c);
-        if ((uLo & l) === 0 && (uHi & h) === 0) { uLo |= l; uHi |= h; cs[2 + board.length + j] = c; break; }
+  const step = (deadline) => {
+    while (accepted < samples && attempts < maxAttempts) {
+      attempts++;
+      if ((attempts & 255) === 0 && Date.now() >= deadline) return false;
+      let uLo = blockLo, uHi = blockHi, ok = true;
+      for (let p = 0; p < n; p++) {
+        const q = P[p], i = Math.floor(Math.random() * q.m);
+        if ((uLo & q.lo[i]) !== 0 || (uHi & q.hi[i]) !== 0) { ok = false; break; }
+        uLo |= q.lo[i]; uHi |= q.hi[i]; pickIdx[p] = i;
       }
+      if (!ok) continue;
+      for (let j = 0; j < k; j++) {
+        for (;;) {
+          const c = Math.floor(Math.random() * 52);
+          const [l, h] = bit(c);
+          if ((uLo & l) === 0 && (uHi & h) === 0) { uLo |= l; uHi |= h; cs[2 + board.length + j] = c; break; }
+        }
+      }
+      let best = -1, w = 0;
+      for (let p = 0; p < n; p++) {
+        cs[0] = P[p].cards[2 * pickIdx[p]]; cs[1] = P[p].cards[2 * pickIdx[p] + 1];
+        const v = evalN(cs, 7);
+        scores[p] = v;
+        if (v > best) { best = v; w = 1; } else if (v === best) w++;
+      }
+      for (let p = 0; p < n; p++) {
+        if (scores[p] === best) { eq[p] += 1 / w; if (w === 1) win[p]++; else tie[p]++; }
+      }
+      accepted++;
     }
-    let best = -1, w = 0;
-    for (let p = 0; p < n; p++) {
-      cs[0] = P[p].cards[2 * pickIdx[p]]; cs[1] = P[p].cards[2 * pickIdx[p] + 1];
-      const v = evalN(cs, 7);
-      scores[p] = v;
-      if (v > best) { best = v; w = 1; } else if (v === best) w++;
-    }
-    for (let p = 0; p < n; p++) {
-      if (scores[p] === best) { eq[p] += 1 / w; if (w === 1) win[p]++; else tie[p]++; }
-    }
-    accepted++;
-  }
-  if (accepted === 0) return null;
-  return eq.map((v, i) => ({ equity: v / accepted, win: win[i] / accepted, tie: tie[i] / accepted }));
+    return true;
+  };
+  const result = () => (accepted === 0 ? null
+    : eq.map((v, i) => ({ equity: v / accepted, win: win[i] / accepted, tie: tie[i] / accepted })));
+  return { step, result, exact: false };
 }

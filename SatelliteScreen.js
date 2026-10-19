@@ -41,8 +41,13 @@ export default function SatelliteScreen() {
 
   const nums = stacks.map((v) => parseFloat(v) || 0);
   const total = nums.reduce((a, b) => a + b, 0);
-  const probs = useMemo(() => cashProbabilities(nums, paid), [stacks, paid]);
   const filled = nums.filter((n) => n > 0).length;
+  // Blank rows would otherwise be treated as absent players and inflate everyone else's odds.
+  const ready = filled === players;
+  const probs = useMemo(() => (ready ? cashProbabilities(nums, paid) : []), [stacks, paid, ready]);
+
+  // Don't accept input until saved state has loaded, or the load would overwrite it.
+  if (!loaded) return <View style={s.safe} />;
 
   return (
     <View style={s.safe}>
@@ -82,7 +87,7 @@ export default function SatelliteScreen() {
                   onChangeText={(t) => setStacks((st) => st.map((x, k) => (k === i ? t.replace(/[^0-9]/g, '') : x)))}
                 />
                 <View style={s.result}>
-                  {nums[i] > 0 && filled > 0 ? (
+                  {ready ? (
                     <>
                       <Text style={s.pct}>{(p * 100).toFixed(1)}%</Text>
                       <View style={s.barBg}><View style={[s.bar, { width: `${p * 100}%` }]} /></View>
@@ -97,7 +102,9 @@ export default function SatelliteScreen() {
           })}
 
           <Text style={s.foot}>
-            {total > 0 ? `Total ${total.toLocaleString()} chips · average ${Math.round(total / Math.max(filled, 1)).toLocaleString()}` : 'Enter each player’s chips to see their chance of a seat.'}
+            {ready ? `Total ${total.toLocaleString()} chips · average ${Math.round(total / players).toLocaleString()}`
+              : filled > 0 ? `Enter all ${players} stacks to see the odds (${filled} of ${players} entered).`
+              : 'Enter each player’s chips to see their chance of a seat.'}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

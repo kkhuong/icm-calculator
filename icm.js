@@ -46,6 +46,19 @@ function exact(s, paid) {
   return res;
 }
 
+// Picks the next finisher proportional to stack among players still in (w[j] > 0). If float
+// rounding runs x past the end, falls back to the last live player instead of a busted one.
+function pickNext(w, total) {
+  let x = Math.random() * total, j = -1;
+  for (let i = 0; i < w.length; i++) {
+    if (w[i] <= 0) continue;
+    j = i;
+    if (x < w[i]) break;
+    x -= w[i];
+  }
+  return j;
+}
+
 function monteCarlo(s, paid, runs) {
   const m = s.length;
   const hits = new Array(m).fill(0);
@@ -53,9 +66,7 @@ function monteCarlo(s, paid, runs) {
     const w = s.slice();
     let total = w.reduce((a, b) => a + b, 0);
     for (let k = 0; k < paid; k++) {
-      let x = Math.random() * total;
-      let j = 0;
-      for (; j < m - 1; j++) { if (w[j] > 0 && x < w[j]) break; x -= w[j]; }
+      const j = pickNext(w, total);
       hits[j]++;
       total -= w[j];
       w[j] = 0;
@@ -115,9 +126,7 @@ function equityMC(s, payouts, L, runs) {
     const w = s.slice();
     let total = w.reduce((a, b) => a + b, 0);
     for (let k = 0; k < L; k++) {
-      let x = Math.random() * total;
-      let j = 0;
-      for (; j < m - 1; j++) { if (w[j] > 0 && x < w[j]) break; x -= w[j]; }
+      const j = pickNext(w, total);
       acc[j] += payouts[k];
       total -= w[j];
       w[j] = 0;
