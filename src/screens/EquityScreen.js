@@ -4,7 +4,7 @@ import useEquityCalc, { boardProblem } from '../hooks/useEquityCalc';
 import { emptyRange, rangeStats } from '../lib/ranges';
 import { pct } from '../lib/format';
 import { ScreenTitle } from '../components/Screen';
-import { TextAction } from '../components/SectionHeader';
+import SectionHeader, { TextAction } from '../components/SectionHeader';
 import { CardSlot, CardPicker } from '../components/Cards';
 import { AddButton, RemoveButton } from '../components/RowButtons';
 import { NoResult } from '../components/Result';
@@ -115,6 +115,15 @@ export default function EquityScreen() {
     if (rg[i]) setEditing(i);
     setSel(firstEmpty(hs, board, null, rg));
   };
+  // Per-section clears; each selects the first slot of the section it emptied.
+  const clearBoard = () => { setBoard(Array(5).fill(null)); setSel(['b', 0, 0]); };
+  const clearHands = () => {
+    const hs = hands.map(emptyHand);
+    const rg = ranges.map((q) => (q ? emptyRange() : null));
+    setHands(hs); setRanges(rg);
+    setSel(firstEmpty(hs, board, null, rg));
+  };
+  const clearDead = () => { setDead([]); setSel(['d', 0, 0]); };
   const reset = () => {
     setHands([emptyHand(), emptyHand()]); setRanges([null, null]); setBoard(Array(5).fill(null)); setDead([]); setSel(['h', 0, 0]);
   };
@@ -124,7 +133,7 @@ export default function EquityScreen() {
   return (
     <View style={s.safe}>
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <ScreenTitle title="Calculate hand equity" right={<TextAction label="Clear" onPress={reset} />} />
+        <ScreenTitle title="Calculate hand equity" right={<TextAction label="Clear all" onPress={reset} />} />
 
         <View style={st.seg}>
           {GAMES.map(([g, label]) => (
@@ -134,7 +143,7 @@ export default function EquityScreen() {
           ))}
         </View>
 
-        <Text style={s.head}>Board</Text>
+        <SectionHeader title="Board" onClear={clearBoard} />
         <View style={st.boardRow}>
           {board.map((c, i) => (
             <View key={i} style={i === 3 || i === 4 ? st.street : null}>
@@ -144,7 +153,7 @@ export default function EquityScreen() {
         </View>
         {problem ? <Text style={s.hint}>{problem}</Text> : null}
 
-        <View style={st.divider}><Text style={s.head}>Hands</Text></View>
+        <SectionHeader title="Hands" divider onClear={clearHands} />
         {hands.map((h, i) => {
           const r = res && res[i];
           const rs = ranges[i] && rangeStats(ranges[i]);
@@ -180,9 +189,7 @@ export default function EquityScreen() {
         {note ? <Text style={s.hint}>{note}</Text> : null}
         {hands.length < maxHands && <AddButton label="+ Add hand" onPress={addHand} />}
 
-        <View style={st.divider}>
-          <Text style={s.head}>Dead cards <Text style={s.sub}>exposed or mucked</Text></Text>
-        </View>
+        <SectionHeader title={<>Dead cards <Text style={s.sub}>exposed or mucked</Text></>} divider onClear={clearDead} />
         <View style={st.deadRow}>
           {[...dead, ...(dead.length < MAX_DEAD ? [null] : [])].map((c, i) => (
             <CardSlot key={i} card={c} selected={sameSlot(sel, ['d', i, 0])} onPress={() => tapSlot(['d', i, 0])} />
@@ -212,7 +219,6 @@ const st = StyleSheet.create({
   segTextOn: { color: C.ink },
   boardRow: { flexDirection: 'row', gap: 4, marginTop: 4 },
   street: { marginLeft: 8 }, // gap before the turn and river
-  divider: { marginTop: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line, marginBottom: 4 },
   rangeBtn: { width: 98, height: 40, borderRadius: 8, borderWidth: 1, borderColor: C.amber, alignItems: 'center', justifyContent: 'center' },
   rangeTop: { color: C.amber, fontSize: 14, fontWeight: '800' },
   rangeSub: { color: C.dim, fontSize: 11, marginTop: 1 },
