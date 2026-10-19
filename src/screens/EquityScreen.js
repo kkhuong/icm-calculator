@@ -124,7 +124,7 @@ export default function EquityScreen() {
   return (
     <View style={s.safe}>
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <ScreenTitle right={<TextAction label="Clear" onPress={reset} />} />
+        <ScreenTitle title="Calculate hand equity" right={<TextAction label="Clear" onPress={reset} />} />
 
         <View style={st.seg}>
           {GAMES.map(([g, label]) => (

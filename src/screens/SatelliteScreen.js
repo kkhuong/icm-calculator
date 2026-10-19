@@ -17,7 +17,7 @@ const MAX_PLAYERS = 200;
 // Chance each player finishes in the top `paid` places, i.e. wins a seat.
 export default function SatelliteScreen() {
   const [{ players, paid, stacks }, update, loaded] = usePersistentState(STORAGE_KEY, {
-    players: 6, paid: 3, stacks: Array(6).fill(''),
+    players: 9, paid: 3, stacks: Array(9).fill(''),
   });
 
   const setPlayers = (n) => update((cur) => ({
@@ -35,7 +35,7 @@ export default function SatelliteScreen() {
   if (!loaded) return <View style={s.safe} />;
 
   return (
-    <FormScreen subtitle="Chance to win a seat">
+    <FormScreen title="Chance to win a seat">
       <StepperRow>
         <Stepper label="Players left" value={players} min={2} max={MAX_PLAYERS} onChange={setPlayers} />
         <Stepper label="Seats awarded" value={paid} min={1} max={players - 1} onChange={(n) => update({ paid: n })} />

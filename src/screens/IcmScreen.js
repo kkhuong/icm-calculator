@@ -18,7 +18,7 @@ const MAX_PLAYERS = 30;
 // Fair (ICM) dollar value of each stack given the payout structure.
 export default function IcmScreen() {
   const [{ players, places, stacks, prizes }, update, loaded] = usePersistentState(STORAGE_KEY, {
-    players: 6, places: 3, stacks: Array(6).fill(''), prizes: Array(MAX_PLAYERS).fill(''),
+    players: 9, places: 3, stacks: Array(9).fill(''), prizes: Array(MAX_PLAYERS).fill(''),
   });
 
   const setPlayers = (n) => update((cur) => ({
@@ -49,7 +49,7 @@ export default function IcmScreen() {
   if (!loaded) return <View style={s.safe} />;
 
   return (
-    <FormScreen subtitle="Fair value of each stack">
+    <FormScreen title="Fair value of each stack">
       <StepperRow>
         <Stepper label="Players left" value={players} min={2} max={MAX_PLAYERS} onChange={setPlayers} />
         <Stepper label="Paid places" value={places} min={1} max={players} onChange={(n) => update({ places: n })} />

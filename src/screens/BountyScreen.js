@@ -59,7 +59,7 @@ export default function BountyScreen() {
   if (!loaded) return <View style={s.safe} />;
 
   return (
-    <FormScreen subtitle="Mystery bounty value">
+    <FormScreen title="Mystery bounty value">
       <View style={st.card}>
         <Text style={st.cardLabel}>Each knockout's expected worth</Text>
         <Text style={st.ev}>{stats.count ? money(stats.ev) : '–'}</Text>

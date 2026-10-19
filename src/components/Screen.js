@@ -3,23 +3,23 @@ import { View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } fr
 import { C } from '../theme';
 import { s } from '../styles';
 
-// "GTO Finance" heading with a subtitle on the right, or any element passed as `right`.
-export function ScreenTitle({ subtitle, right }) {
+// Screen heading on the left (optional) and an optional element, like a Clear action, on the right.
+export function ScreenTitle({ title, right }) {
   return (
     <View style={st.titleRow}>
-      <Text style={st.title}>GTO Finance</Text>
-      {right ?? <Text style={s.sub}>{subtitle}</Text>}
+      {title ? <Text style={st.title}>{title}</Text> : <View />}
+      {right}
     </View>
   );
 }
 
 // Scrolling form screen that stays clear of the keyboard, with the title row on top.
-export default function FormScreen({ subtitle, children }) {
+export default function FormScreen({ title, children }) {
   return (
     <View style={s.safe}>
       <KeyboardAvoidingView style={st.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
-          <ScreenTitle subtitle={subtitle} />
+          <ScreenTitle title={title} />
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
