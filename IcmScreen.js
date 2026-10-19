@@ -42,7 +42,8 @@ export default function IcmScreen() {
   };
 
   const nums = stacks.map((v) => parseFloat(v) || 0);
-  const pay = prizes.slice(0, places).map((v) => parseFloat(v) || 0);
+  // Payouts are treated as highest-first whatever order they were typed in (a lower place never pays more).
+  const pay = prizes.slice(0, places).map((v) => parseFloat(v) || 0).sort((a, b) => b - a);
   const total = nums.reduce((a, b) => a + b, 0);
   const pool = pay.reduce((a, b) => a + b, 0);
   const filled = nums.filter((n) => n > 0).length;
@@ -87,7 +88,7 @@ export default function IcmScreen() {
           </View>
 
           <View style={[s.headRow, x.divider]}>
-            <Text style={s.head}>Chip stacks</Text>
+            <Text style={s.head}>Chip Stacks</Text>
             <Pressable onPress={() => setStacks(Array(players).fill(''))}>
               <Text style={s.clear}>Clear</Text>
             </Pressable>
@@ -126,7 +127,7 @@ export default function IcmScreen() {
           })}
 
           <Text style={s.foot}>
-            {pool > 0 ? `Prize pool ${money(pool)} · ${ready ? total.toLocaleString() + ' in stacks' : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
+            {pool > 0 ? `Prize pool ${money(pool)} · ${ready ? total.toLocaleString() + ' total chips' : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
