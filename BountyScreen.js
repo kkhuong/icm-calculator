@@ -5,28 +5,29 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { bountyStats, bountyInChips, requiredEquity } from './bounty';
-import { C, s } from './ui';
+import { C, MoneyInput, money, decimalText, s } from './ui';
 
 const KEY = 'gto-finance-bounty-v1';
 const MAX_TIERS = 20;
 const blank = () => ({ amount: '', count: '' });
 const fmt = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 const whole = (n) => Math.round(n).toLocaleString();
-const decimal = (t) => t.replace(/,/g, '.').replace(/[^0-9.]/g, '');
 const digits = (t) => t.replace(/[^0-9]/g, '');
 const EMPTY_SPOT = { prizeLeft: '', chips: '', bb: '', pot: '', call: '' };
 
-function Field({ label, value, onChange, decimalPad }) {
+function Field({ label, value, onChange, decimalPad, isMoney }) {
+  const Input = isMoney ? MoneyInput : TextInput;
   return (
     <View style={x.field}>
       <Text style={x.fieldLabel} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
-      <TextInput
+      <Input
+        wrapStyle={isMoney ? x.fieldWrap : undefined}
         style={[s.input, x.fieldInput]}
         value={value}
         placeholder="0"
         placeholderTextColor={C.dim}
         keyboardType={decimalPad ? 'decimal-pad' : 'number-pad'}
-        onChangeText={(t) => onChange(decimalPad ? decimal(t) : digits(t))}
+        onChangeText={(t) => onChange(decimalPad ? decimalText(t) : digits(t))}
       />
     </View>
   );
@@ -78,21 +79,21 @@ export default function BountyScreen() {
 
           <View style={x.card}>
             <Text style={x.cardLabel}>Each knockout is worth</Text>
-            <Text style={x.ev}>{st.count ? fmt(st.ev) : '–'}</Text>
+            <Text style={x.ev}>{st.count ? money(st.ev) : '–'}</Text>
             <Text style={x.cardSub}>
               {st.count
-                ? `${st.count.toLocaleString()} bounties left · ${fmt(st.pool)} in the pool`
+                ? `${st.count.toLocaleString()} bounties left · ${money(st.pool)} in the pool`
                 : 'Enter each bounty size and how many are left.'}
             </Text>
             {st.count > 0 && (
               <Text style={x.cardSub}>
-                Top bounty {fmt(st.top)}: {(st.pTop * 100).toFixed(2)}% per draw · spread ±{fmt(st.sd)}
+                Top bounty {money(st.top)} · Standard deviation ±{money(st.sd)}
               </Text>
             )}
           </View>
 
           <View style={s.headRow}>
-            <Text style={s.head}>Bounties left</Text>
+            <Text style={s.head}>Mystery Bounties left</Text>
             <Pressable onPress={() => setTiers([blank(), blank(), blank()])}>
               <Text style={s.clear}>Clear</Text>
             </Pressable>
@@ -103,13 +104,13 @@ export default function BountyScreen() {
             return (
               <View key={i} style={s.row}>
                 <Pressable onPress={() => remove(i)} hitSlop={8}><Text style={x.del}>✕</Text></Pressable>
-                <TextInput
+                <MoneyInput
                   style={s.input}
                   value={t.amount}
                   placeholder="Bounty"
                   placeholderTextColor={C.dim}
                   keyboardType="decimal-pad"
-                  onChangeText={(v) => edit(i, 'amount', decimal(v))}
+                  onChangeText={(v) => edit(i, 'amount', decimalText(v))}
                 />
                 <Text style={x.times}>×</Text>
                 <TextInput
@@ -145,7 +146,7 @@ export default function BountyScreen() {
 
           <Text style={[s.head, x.section]}>Bounty in chips</Text>
           <View style={x.fields}>
-            <Field label="Prize money left" value={spot.prizeLeft} onChange={setField('prizeLeft')} decimalPad />
+            <Field label="Prize money left" value={spot.prizeLeft} onChange={setField('prizeLeft')} decimalPad isMoney />
             <Field label="Chips in play" value={spot.chips} onChange={setField('chips')} />
             <Field label="Big blind" value={spot.bb} onChange={setField('bb')} />
           </View>
@@ -177,6 +178,7 @@ const x = StyleSheet.create({
   fields: { flexDirection: 'row', gap: 6, marginTop: 4 },
   field: { flex: 1, backgroundColor: C.card, borderRadius: 10, padding: 6 },
   fieldLabel: { color: C.dim, fontSize: 11, marginBottom: 3 },
+  fieldWrap: { flex: 0 },
   fieldInput: { flex: 0, height: 38, fontSize: 16, paddingHorizontal: 8 },
   answer: { color: C.text, fontSize: 14, marginTop: 6, lineHeight: 20 },
   hi: { color: C.amber, fontWeight: '800' },

@@ -5,10 +5,10 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cashProbabilities } from './icm';
-import { C, Stepper, s } from './ui';
+import { C, Stepper, decimalText, s } from './ui';
 
 const KEY = 'gto-finance-v1';
-const MAX_PLAYERS = 30;
+const MAX_PLAYERS = 200;
 
 export default function SatelliteScreen() {
   const [players, setPlayers] = useState(6);
@@ -78,13 +78,13 @@ export default function SatelliteScreen() {
                   ref={(r) => (refs.current[i] = r)}
                   style={s.input}
                   value={v}
-                  placeholder="Stack"
+                  placeholder="Chips or BB"
                   placeholderTextColor={C.dim}
-                  keyboardType="number-pad"
+                  keyboardType="decimal-pad"
                   returnKeyType={i === players - 1 ? 'done' : 'next'}
                   blurOnSubmit={i === players - 1}
                   onSubmitEditing={() => refs.current[i + 1]?.focus()}
-                  onChangeText={(t) => setStacks((st) => st.map((x, k) => (k === i ? t.replace(/[^0-9]/g, '') : x)))}
+                  onChangeText={(t) => setStacks((st) => st.map((x, k) => (k === i ? decimalText(t) : x)))}
                 />
                 <View style={s.result}>
                   {ready ? (
@@ -102,7 +102,7 @@ export default function SatelliteScreen() {
           })}
 
           <Text style={s.foot}>
-            {ready ? `Total ${total.toLocaleString()} chips · average ${Math.round(total / players).toLocaleString()}`
+            {ready ? `Total ${total.toLocaleString()} · average ${(total / players).toLocaleString(undefined, { maximumFractionDigits: 1 })}`
               : filled > 0 ? `Enter all ${players} stacks to see the odds (${filled} of ${players} entered).`
               : 'Enter each player’s chips to see their chance of a seat.'}
           </Text>

@@ -5,11 +5,10 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { icmEquity } from './icm';
-import { C, Stepper, s } from './ui';
+import { C, Stepper, MoneyInput, money, decimalText, s } from './ui';
 
 const KEY = 'gto-finance-icm-v1';
 const MAX_PLAYERS = 30;
-const fmt = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 const ord = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 >> 3) ^ 1 && n % 10 < 4 ? n % 10 : 0]);
 
 export default function IcmScreen() {
@@ -75,13 +74,13 @@ export default function IcmScreen() {
             {Array.from({ length: places }, (_, i) => (
               <View key={i} style={x.prizeCell}>
                 <Text style={x.place}>{ord(i + 1)}</Text>
-                <TextInput
+                <MoneyInput
                   style={x.prizeInput}
                   value={prizes[i]}
                   placeholder="0"
                   placeholderTextColor={C.dim}
                   keyboardType="decimal-pad"
-                  onChangeText={(t) => setPrizes((p) => p.map((v, k) => (k === i ? t.replace(/,/g, '.').replace(/[^0-9.]/g, '') : v)))}
+                  onChangeText={(t) => setPrizes((p) => p.map((v, k) => (k === i ? decimalText(t) : v)))}
                 />
               </View>
             ))}
@@ -103,20 +102,20 @@ export default function IcmScreen() {
                   ref={(r) => (refs.current[i] = r)}
                   style={s.input}
                   value={v}
-                  placeholder="Stack"
+                  placeholder="Chips or BB"
                   placeholderTextColor={C.dim}
-                  keyboardType="number-pad"
+                  keyboardType="decimal-pad"
                   returnKeyType={i === players - 1 ? 'done' : 'next'}
                   blurOnSubmit={i === players - 1}
                   onSubmitEditing={() => refs.current[i + 1]?.focus()}
-                  onChangeText={(t) => setStacks((st) => st.map((q, k) => (k === i ? t.replace(/[^0-9]/g, '') : q)))}
+                  onChangeText={(t) => setStacks((st) => st.map((q, k) => (k === i ? decimalText(t) : q)))}
                 />
                 <View style={[s.result, { width: 140 }]}>
                   {ready ? (
                     <>
-                      <Text style={s.pct}>{fmt(eq[i])}</Text>
+                      <Text style={s.pct}>{money(eq[i])}</Text>
                       <View style={s.barBg}><View style={[s.bar, { width: `${(eq[i] / pool) * 100}%` }]} /></View>
-                      <Text style={s.chips} numberOfLines={1} adjustsFontSizeToFit>chip value {fmt(share * pool)} ({(share * 100).toFixed(1)}%)</Text>
+                      <Text style={s.chips} numberOfLines={1} adjustsFontSizeToFit>chip value {money(share * pool)} ({(share * 100).toFixed(1)}%)</Text>
                     </>
                   ) : (
                     <Text style={s.pctDim}>–</Text>
@@ -127,7 +126,7 @@ export default function IcmScreen() {
           })}
 
           <Text style={s.foot}>
-            {pool > 0 ? `Prize pool ${fmt(pool)} · ${ready ? fmt(total) + ' chips' : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
+            {pool > 0 ? `Prize pool ${money(pool)} · ${ready ? total.toLocaleString() + ' in stacks' : `enter all ${players} stacks (${filled} entered)`}` : 'Enter the payouts and each player’s chips.'}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

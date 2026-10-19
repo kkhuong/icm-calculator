@@ -9,8 +9,8 @@ import { C } from './ui';
 
 const TABS = [
   { id: 'sat', label: 'Satellite' },
-  { id: 'icm', label: 'ICM value' },
-  { id: 'eq', label: 'Equity' },
+  { id: 'icm', label: 'ICM Value' },
+  { id: 'eq', label: 'Hand Equity' },
   { id: 'mb', label: 'Bounty' },
 ];
 
