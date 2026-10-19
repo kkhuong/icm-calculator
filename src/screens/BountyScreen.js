@@ -111,7 +111,7 @@ export default function BountyScreen() {
         );
       })}
       {tiers.length < MAX_TIERS && (
-        <AddButton label="+ Add bounty size" onPress={() => setTiers((ts) => [...ts, blank()])} />
+        <AddButton label="+ Add bounty prize" onPress={() => setTiers((ts) => [...ts, blank()])} />
       )}
       <Text style={s.foot}>Tap − each time a bounty of that size is pulled. % is the chance the next one drawn is that size.</Text>
 
