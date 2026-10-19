@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, Keyboard, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Keyboard, StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import SatelliteScreen from './SatelliteScreen';
-import IcmScreen from './IcmScreen';
-import EquityScreen from './EquityScreen';
-import BountyScreen from './BountyScreen';
-import { C } from './ui';
+import SatelliteScreen from './screens/SatelliteScreen';
+import IcmScreen from './screens/IcmScreen';
+import EquityScreen from './screens/EquityScreen';
+import BountyScreen from './screens/BountyScreen';
+import { C } from './theme';
 
 const TABS = [
-  { id: 'sat', label: 'Satellite' },
-  { id: 'icm', label: 'ICM Value' },
-  { id: 'eq', label: 'Hand Equity' },
-  { id: 'mb', label: 'Bounty' },
+  { id: 'sat', label: 'Satellite', Screen: SatelliteScreen },
+  { id: 'icm', label: 'ICM Value', Screen: IcmScreen },
+  { id: 'eq', label: 'Hand Equity', Screen: EquityScreen },
+  { id: 'mb', label: 'Bounty', Screen: BountyScreen },
 ];
 
 function Main() {
@@ -19,6 +19,7 @@ function Main() {
   const [tab, setTab] = useState('sat');
   const [kb, setKb] = useState(false);
 
+  // The tab bar hides while the keyboard is up so it doesn't sit on top of the inputs.
   useEffect(() => {
     const a = Keyboard.addListener('keyboardWillShow', () => setKb(true));
     const b = Keyboard.addListener('keyboardDidShow', () => setKb(true));
@@ -29,11 +30,11 @@ function Main() {
 
   return (
     <View style={[st.root, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <StatusBar barStyle="light-content" />
       {/* All screens stay mounted so nothing you typed is lost when switching tabs */}
-      <View style={[st.screen, tab !== 'sat' && st.hidden]}><SatelliteScreen /></View>
-      <View style={[st.screen, tab !== 'icm' && st.hidden]}><IcmScreen /></View>
-      <View style={[st.screen, tab !== 'eq' && st.hidden]}><EquityScreen /></View>
-      <View style={[st.screen, tab !== 'mb' && st.hidden]}><BountyScreen /></View>
+      {TABS.map(({ id, Screen }) => (
+        <View key={id} style={[st.screen, tab !== id && st.hidden]}><Screen /></View>
+      ))}
       {!kb && (
         <View style={[st.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
           {TABS.map((t) => (

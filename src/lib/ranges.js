@@ -1,4 +1,4 @@
-import { RANKS, cardOf } from './equity';
+import { RANKS, cardOf } from './cards';
 
 // 13x13 grid, row/col 0 = Ace. Pairs on the diagonal, suited above it, offsuit below it.
 export const cellLabel = (r, c) => (r === c ? RANKS[r] + RANKS[r] : r < c ? RANKS[r] + RANKS[c] + 's' : RANKS[c] + RANKS[r] + 'o');

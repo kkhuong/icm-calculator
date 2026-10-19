@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Modal, StyleSheet, useWindowDimensions } from 'react-native';
-import { C } from './ui';
-import { cellLabel, rangeStats, topPercent, emptyRange } from './ranges';
+import { C } from '../theme';
+import { cellLabel, rangeStats, topPercent, emptyRange } from '../lib/ranges';
 
 const CELL_H = 34;
 const PRESETS = [5, 10, 15, 20, 30, 50];

@@ -1,9 +1,4 @@
-// Card = rank*4 + suit. rank 0..12 = 2..A, suit 0..3 = s,h,d,c
-export const RANKS = 'AKQJT98765432';          // display order (A first)
-export const SUITS = ['♠', '♥', '♦', '♣'];
-export const SUIT_COLORS = ['#1B2733', '#D64545', '#2F6FD6', '#2E8B57'];
-export const rankChar = (c) => 'AKQJT98765432'[12 - (c >> 2)];
-export const cardOf = (rankIdx, suit) => (12 - rankIdx) * 4 + suit; // rankIdx = position in RANKS
+// Hand evaluation and equity (Hold'em, PLO, PLO5). Cards use the encoding in cards.js.
 
 const rc = new Int8Array(13), sc = new Int8Array(4), sm = new Int16Array(4);
 

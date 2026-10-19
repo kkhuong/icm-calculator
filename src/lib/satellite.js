@@ -1,4 +1,4 @@
-// Satellite ICM: every surviving player in the paid spots gets the same prize,
+// Satellite math: every surviving player in the paid spots gets the same prize (a seat),
 // so a player's equity = probability of finishing in the top `paid` places
 // (Malmuth-Harville model: next finisher is picked proportional to chip stack).
 // Exact for up to 20 players; larger fields use raceIntegral below (accurate to ~1e-9).
@@ -47,26 +47,13 @@ function exact(s, paid) {
   return res;
 }
 
-// Picks the next finisher proportional to stack among players still in (w[j] > 0). If float
-// rounding runs x past the end, falls back to the last live player instead of a busted one.
-function pickNext(w, total) {
-  let x = Math.random() * total, j = -1;
-  for (let i = 0; i < w.length; i++) {
-    if (w[i] <= 0) continue;
-    j = i;
-    if (x < w[i]) break;
-    x -= w[i];
-  }
-  return j;
-}
-
 // Large fields. Harville finishing order is equivalent to a race: player j "finishes" at an
 // independent time T_j ~ Exp(rate s_j), earliest = 1st place. So
 //   P(i in top K) = ∫ s_i e^(-s_i t) · P(fewer than K others have T_j < t) dt,
 // where that count is Poisson-binomial with p_j = 1 - e^(-s_j t). For each t, prefix/suffix
 // count DPs give every player's leave-one-out distribution in O(m·K). When K > m/2 it counts
 // the m-K places outside the money instead and takes the complement (cost ∝ min(K, m-K)).
-// Integrated with Simpson's rule in log t; accurate to ~1e-6 vs the exact method.
+// Integrated with Simpson's rule in log t; matches the exact method to ~1e-9.
 function raceIntegral(stacks, paid, N = 400) {
   const m = stacks.length;
   const mean = stacks.reduce((a, b) => a + b, 0) / m;
@@ -107,64 +94,4 @@ function raceIntegral(stacks, paid, N = 400) {
     }
   }
   return Array.from(out, (v) => Math.min(1, Math.max(0, low ? 1 - v : v)));
-}
-
-// Standard ICM: expected prize for each stack given payouts for places 1..n.
-export function icmEquity(stacks, payouts) {
-  const out = stacks.map(() => 0);
-  const idx = [];
-  stacks.forEach((v, i) => { if (v > 0) idx.push(i); });
-  const m = idx.length;
-  const L = Math.min(m, payouts.length);
-  if (m === 0 || L === 0) return out;
-  const s = idx.map((i) => stacks[i]);
-  const e = m <= 20 ? equityExact(s, payouts, L) : equityMC(s, payouts, L, 30000);
-  idx.forEach((i, k) => (out[i] = e[k]));
-  return out;
-}
-
-function equityExact(s, payouts, L) {
-  const m = s.length;
-  const total = s.reduce((a, b) => a + b, 0);
-  const size = 1 << m;
-  const sum = new Float64Array(size);
-  const pc = new Uint8Array(size);
-  const g = new Float64Array(size);
-  const eq = new Array(m).fill(0);
-  g[0] = 1;
-  for (let mask = 0; mask < size; mask++) {
-    if (mask) {
-      const low = mask & -mask;
-      const j = 31 - Math.clz32(low);
-      sum[mask] = sum[mask ^ low] + s[j];
-      pc[mask] = pc[mask ^ low] + 1;
-    }
-    const gm = g[mask];
-    if (gm === 0 || pc[mask] >= L) continue;
-    const rem = total - sum[mask];
-    const prize = payouts[pc[mask]];
-    for (let j = 0; j < m; j++) {
-      if (mask & (1 << j)) continue;
-      const pr = (gm * s[j]) / rem; // P(set = mask, then j finishes next)
-      g[mask | (1 << j)] += pr;
-      eq[j] += pr * prize;
-    }
-  }
-  return eq;
-}
-
-function equityMC(s, payouts, L, runs) {
-  const m = s.length;
-  const acc = new Array(m).fill(0);
-  for (let r = 0; r < runs; r++) {
-    const w = s.slice();
-    let total = w.reduce((a, b) => a + b, 0);
-    for (let k = 0; k < L; k++) {
-      const j = pickNext(w, total);
-      acc[j] += payouts[k];
-      total -= w[j];
-      w[j] = 0;
-    }
-  }
-  return acc.map((v) => v / runs);
 }
